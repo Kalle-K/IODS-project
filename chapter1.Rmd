@@ -1,13 +1,16 @@
+---
+title: "Why am I here?"
+output:
+  html_document: default
+---
 
-# About the project
+I am rather exited to start this course, **although** I am a bit worried that the workload will be too much for me. I hope though, that **if** I manage with the the workload, I will have the skills to start independently developing as a user of R and a contributor to open data science. It is especially the **latter** point that brought me to this course, although I did not actively look for it. I just happened to run into it on the course page of the *University of Helsinki*.
 
-*Write a short description about the course and add a link to your GitHub repository here. This is an R Markdown (.Rmd) file so you should use R Markdown syntax.*
+To summarize:  
+- I want to learn open data science.  
+- I am worried the workload will be too much.  
+- I look forward to the course.  
 
-```{r}
-# This is a so-called "R chunk" where you can write R code.
+**Here's the [link](https://github.com/Kalle-K/IODS-project) to by GitHub repository.**
 
-date()
-
-```
-The text continues here.
 
