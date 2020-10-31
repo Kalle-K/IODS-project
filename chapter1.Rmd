@@ -4,7 +4,9 @@ output:
   html_document: default
 ---
 
-I am rather exited to start this course, **although** I am a bit worried that the workload will be too much for me. I hope though, that **if** I manage with the the workload, I will have the skills to start independently developing as a user of R and a contributor to open data science. It is especially the **latter** point that brought me to this course, although I did not actively look for it. I just happened to run into it on the course page of the *University of Helsinki*.
+1.1  I am rather exited to start this course, **although** I am a bit worried that the workload will be too much for me. I hope though, that **if** I manage with the the workload, I will have the skills to start independently developing as a user of R and a contributor to open data science. It is especially the **latter** point that brought me to this course, although I did not actively look for it. I just happened to run into it on the course page of the *University of Helsinki*.  
+
+1.2  In what has been a rather unpleasant experience, GitHub has not worked for me. Nothing seems to upload to my diary. Let's see if this works...
 
 To summarize:  
 - I want to learn open data science.  
