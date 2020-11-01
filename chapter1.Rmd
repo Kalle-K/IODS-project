@@ -14,5 +14,3 @@ output:
 - I look forward to the course.  
 
 **Here's the [link](https://github.com/Kalle-K/IODS-project) to by GitHub repository.**
-
-
