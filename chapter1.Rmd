@@ -8,11 +8,9 @@ output:
 
 **1.2**  In what has been a rather unpleasant experience, GitHub did not immediately work for me. Nothing seemed to upload to my diary.  Now, I think, I have managed to overcome my issues and get things to work most of the time. Learning by doing, I suppose!
 
-**To summarize:**  
+To summarize:  
 - I want to learn open data science.  
 - I am worried the workload will be too much.  
 - I look forward to the course.  
 
 **Here's the [link](https://github.com/Kalle-K/IODS-project) to by GitHub repository.**
-
-
