@@ -1,4 +1,4 @@
-# This is the week 1 data wrangling file
+# This is the week 2 data wrangling file
 # Author: Kalle Kivinen
 # Date: 5.11.2020
 
@@ -35,7 +35,7 @@ learning2014$strat <- rowMeans(strategic_columns)
 retain_data <- c("Age", "gender", "attit", "deep", "surf", "strat", "Points")
 Learn2014 <- select(learning2014, one_of(retain_data))
 
-# Removing values below "0" and exploring the final dataset
+# Removing observations where points are "0" and exploring the final dataset
 Learn2014 <- filter(Learn2014, Points > 0)
 Learn2014
 str(Learn2014)
