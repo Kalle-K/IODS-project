@@ -31,6 +31,9 @@ strategic_questions <- c("ST01","ST09","ST17","ST25","ST04","ST12","ST20","ST28"
 strategic_columns <- select(learning2014, one_of(strategic_questions))
 learning2014$strat <- rowMeans(strategic_columns)
 
+# I have also taken the liberty storing data on gender as a factor for easier manipulation. M = 0, F = 1.
+learning2014$gender <- factor(learning2014$gender, levels=c("M","F"), labels=c(0,1))
+
 # Creating a new dataset by only retaining the above, new meamn columns together with "gender," "Age," and "Points." 
 retain_data <- c("Age", "gender", "attit", "deep", "surf", "strat", "Points")
 Learn2014 <- select(learning2014, one_of(retain_data))
@@ -40,6 +43,7 @@ Learn2014 <- filter(Learn2014, Points > 0)
 Learn2014
 str(Learn2014)
 dim(Learn2014)
+summary(Learn2014)
 
 # Creating a .txt file from the newly created "Learn2014"-dataframe. (3 points)
 getwd()
@@ -47,6 +51,8 @@ setwd("/Users/kallekivinen/Desktop/IODS-project/Data")
 ?write.table
 write.table(Learn2014, file = "Learn2014", sep = "\t")
 test_week2 <- read.table("Learn2014", header = TRUE, sep = "\t")
+test_week2$gender <- factor(test_week2$gender, levels=c("0","1"), labels=c(0,1))
 dim(test_week2)
 str(test_week2)
+summary(test_week2)
 # Everything works!
