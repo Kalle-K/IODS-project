@@ -1,13 +1,79 @@
-# Insert chapter 2 title here
-
-*Describe the work you have done this week and summarize your learning.*
-
-- Describe your work and results clearly. 
-- Assume the reader has an introductory course level understanding of writing and reading R code as well as statistical methods.
-- Assume the reader has no previous knowledge of your data or the more advanced methods you are using.
-
-```{r}
-date()
+---
+title: "Week 2 - Getting Real with Regression"
+output:
+  html_document: default
+---
+Libraries:
+```{r,warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(GGally)
 ```
 
-Here we go again...
+
+
+This chapter analyses a selection of data from a 2014 survey of students participating in an introductory statistics course in Finland. The survey mapped students' learning approaches and learning achievements. While the original data contained 183 observations of 60 variables, a more limited dataset of 166 observations of 7 variables will be employed here. These variables are the **age** and **gender** of the participants, their **points** from the course representing their performance, their **attitude** towards the course, and three variables mapping their learning styles. These learning styles were the "**surface approach**," indicating memorization without deeper engagement, "**deep approach**," indicating an intention to maximize understanding of the subject matter, and "**strategic approach**," indicating an approach aimed at maximizing the students chance at a good grade. The variables "attitude," "surface approach," "deep approach," and "strategic approach" are all aggregate mean measures of other variables. As such, each variable summarizes related observations into an average. This analysis used the below script, in combination with existing knowledge, to interpret the dataset:
+
+
+```{r}
+Learn2014 <- read.table("Data/Learn2014", header = TRUE, sep = "\t")
+Learn2014$gender <- factor(Learn2014$gender, levels=c("0","1"), labels=c(0,1))
+str(Learn2014)
+```
+
+The below graphs and summaries of the data help us gain an initial picture of the trends present therein. For one, we can see that a vast majority of students participating in this survey were female (110 v. 56 males), with a mean age of 25 and a half years and approx. 75% of students being below the age of 27.
+
+As for the variables related to studying, all of them approximate a normal distribution, although with a slight skew to the right. Certain immediately interesting pieces of information arise from the correlation numbers. Firstly, positive attitude is strongly correlated with higher points, while the deep approach seems to counter intuitively have little effect on performance. Nevertheless the surface approach seems to predict a slightly worse performance, while the strategic approach predicts a slightly better performance. Curiously, age among men seems to predict a worser performance, although this might be due to two outliers. We shall next test these initial findings with a multiple linear regression.
+
+
+```{r}
+Graph_AgeGeN <- ggpairs(Learn2014, columns = c(1, 2), legend = 3, title = "Age and Gender", mapping = aes(col = gender), lower = list(combo = wrap("facethist", bins = 20)))
+
+Graph_AgeGenPoints <- ggpairs(Learn2014, columns = c(1,2,7), title = "Effects of Age and Gender on Points", mapping = aes(shape = gender, col = gender), lower = list(combo = wrap("facethist", bins = 20)))
+
+Graph_PredPoints <- ggpairs(Learn2014, columns = c(3:7), title = "Attitude, Study Style and Points", mapping = aes(shape = gender, col = gender), lower = list(combo = wrap("facethist", bins = 20)))
+```
+
+```{r}
+Graph_AgeGeN
+Graph_AgeGenPoints
+Graph_PredPoints
+
+summary(Learn2014)
+```
+
+For the below multiple linear regression, three predictor variable have been chosen: Attitude, the surface approach, and the strategic approach. These variables were chosen due to their relatively higher correlations compared to other available variables (age for males is excluded due to the presence of outliers skewing the calculation). The below multiple linear regression shows that only attitude has a statistically significant impact on points, as it is the only independent variable that has its p-value below 0.05. In the case of attitude, there is a less than 0.1 percent chance that the null-hypothesis (attitude has *no* effect on points) is correct under the observed circumstances. Not only is attitude a statistically significant predictor of points, it also seems to have a strong impact, with its beta coefficient being approx. 3.4. This means that with each 1-point step towards a better attitude on the linkert scale, points seem to rise approximately by 3.4.
+
+With the remainder of data, the likelihood is above 5 percent, which is the conventional cut line for statistical significance. This interpretation is also supported by the t-values, which conventionally are expected to be larger than 2, or lesser than -2, to indicate statistical significance. Altogether, this model nevertheless only explain approximately 20% of the variation in points, meaning that is not a very good predictive model.
+
+
+```{r}
+Points_regression <- lm(Points ~ attit + strat + surf, data = Learn2014)
+summary(Points_regression)
+```
+
+To further test the significance of attitude, the Surface Approach and Strategic Approach variables will be removed and a simple linear regression carried out with just attitude as the predictor variable. This, nevertheless, produced no novel results and with the dropping of variables, also the explanatory power, Multiple R_squared, of the model has gone down from 0.2 to 0.19. This means that changes in students' attitude can help explain 19% of the changes in students' score. The fact that the reduction is so minor is further indication of the minor impact of Surface Approach and Strategic Approach variables. To play around a bit, I have also included a multiple linear regression with age included. Nevertheless, neither this has had any effect on the model. The slight rise in R-squared is to be expected every time a predictive variable is added.
+
+```{r}
+Points_Attit_Reg <- lm(Points ~ attit, data = Learn2014)
+summary(Points_Attit_Reg)
+
+AgeAttit_Regression <- lm(Points ~ attit + Age, data = Learn2014)
+summary(AgeAttit_Regression)
+```
+
+To validate the model, this final section will run three plots to test that the assumptions of a regression model are filled by the data. For this validation, the simple linear regression model of Points_Attit_Reg will be used, as it is the most efficient of the models produced. The below graphs "Residuals vs. Fitted," "Normal Q-Q," and "Residuals vs. Leverage" test whether the assumptions of normal distribution, non-correlation, and constant variance of errors are met.
+
+The Q-Q plot tests whether errors are normally distributed. The below graph shows that the dots fit reasonably on the line, although as we move towards the more extreme quantiles we can see that the distribution shows *signs* of being leptokurtic and as such *might* not be normally distributed. Nevertheless, this analysis interprets this distribution of errors as normal.
+
+The Residuals vs Fitted graph tests the assumption of constant variance of errors by plotting residuals against predicted values. As we can see no discernible pattern in the data, we can interpret the graph as showing no indication of the size of the error depending of the predicted value. Thus constant variance of errors is established
+
+The Residuals vs Leverage graph shows us that none of the datapoints have an unreasonably high power to pull the models predictions outwards themselves. This means that there are no outliers in the dataset. This, in combination with the above tests indivated that the model is valid, as it adheres to the integral assumptions of linear regression.
+
+```{r}
+plot(Points_Attit_Reg, which = c(1,2,5))
+```
+
+
+
+
