@@ -1,0 +1,45 @@
+---
+title: "Week 5 - Dimension Reduction Techniques"
+author: "Kalle Kivinen"
+date: "11/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(tidyr)
+```
+
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+setwd("/Users/kallekivinen/Desktop/IODS-project/Data")
+Human <- read.table("Human_Complete", header = TRUE, sep = "\t")
+
+GraphSet1 <- gather(Human) %>% ggplot(aes(value)) + geom_histogram(fill="darkgoldenrod1", bins=75) + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan"))
+GraphSet1
+
+?par()
+par(las=1, bg="aliceblue", cex.sub=0.2)
+ggpairs(Human, gap=0.2, font.labels=0.2, upper.panel=function(x, y) {
+  points(x, y, col="tan", pch=".", cex=1.5)
+  abline(lm(y ~ x), col="darkgoldenrod1")
+  },
+  lower.panel=function(x, y) {
+    old_par <- par(no.readonly=TRUE)
+    on.exit(old_par)
+    par(usr=c(0, 1, 0, 1))
+    text(x=0.5, y=0.5, labels=round(cor(x, y), 2), font=ifelse(abs(cor(x, y))>0.7, 4, 1))
+  }) + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan"))
+```
+
+
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+
