@@ -40,7 +40,16 @@ output:
 # Introduction to Open Data Science - Week 4, Linear Discriminant Anlaysis and K-Means
   
 ```{r child = "chapter4.Rmd"}
-# This will include Chapter 3 (that is updated in its own file) in the document.
+# This will include Chapter 4 (that is updated in its own file) in the document.
+```
+
+***
+
+
+# Introduction to Open Data Science - Week 5, Dimension Reduction Techniques
+  
+```{r child = "chapter5.Rmd"}
+# This will include Chapter 5 (that is updated in its own file) in the document.
 ```
 
 ***
