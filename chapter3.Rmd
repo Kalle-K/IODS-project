@@ -1,0 +1,195 @@
+---
+title: "Week 3 - Figuring Out the Logistical Side"
+author: "Kalle Kivinen"
+date: "12.11.2020"
+output: html_document
+---
+
+Libraries:
+```{r,warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(boot)
+```
+  
+  
+  **2. and 3.**  
+*Data Description with Variable Selection and Justification*
+
+The below glimpsed dataset "TheData," contains the questionnaire answers of 382 students from two Portuguese secondary schools . The answers were given by students attending maths and Portuguese language courses, each group having produced their own datasets that have here been combined into one dataset. In the process of combining the data, observations have been selected in a manner that assures that 13 identifying variables do not contain empty values. This has resulted in a reduction from 1044 to 382 observations per variable. 
+
+The questionnaire was created to predict the target variable of "G3," ie. the final grade of the student attending the course. Accordingly the variables can be said to have at least a potential link to school performance, although some variables (such as whether the student lives in an urban or rural area) arguably have a more tenuous theoretical link to school performance than others (such as whether the student receives additional educational support). A glimpse of the data is provided below:
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+TheData <- read.table("Data/ThirstyStudents",header = TRUE, sep = "\t")
+glimpse(TheData)
+```
+
+For the purposes of this analysis, four variables relating to alcohol use have been selected. The primary purpose of this analysis is to examine the effects of alcohol use on the final grade. Accordingly the variable "G3," the final grade on a 20-point scale, is a given. As is "alc_use," the variable mapping alcohol use on a five-point scale where "1" indicates very low consumption and "5" very high consumption (*This variable is the mean of the student's alcohol consumption on weekdays and weekends, mapped by variables "Dalc" and "Walc," respectively*). The hypothesized relationship between "G3" and "alc_use" is that the higher consumption of alcohol is a predictor of lower achievement in school, which is represented by G3. Furthermore, it is hypothesized that the mechanism that might explain any potential causal relationship is the amount of absences (measured in days out of 93) arising from either reduced energy or hangover caused by higher amounts of drinking (*I realize that this is a bold assumption to make before examining the relationship between alcohol use, absences and the final grade, but the tasking requires naming the four variables now.*) The benefit of this causal explanation is that it does not require knowledge on the effects of alcohol use on the brain, nor does it, in the case of having such knowledge, demand that the high use is long term - a common qualifier with alcohol related learning difficulties, but something for which the dataset contains no data. 
+
+As the working theory is that higher alcohol use has a negative effect on school performance, it is also useful to theorize about the reasons behind higher alcohol use. Here two variables are examined: "freetime," ie. how much free time the student has in a week on a five-point scale (1 denoting very little, 5 very much), and "famrel," ie. how good the students relationship is to their family on a five-point scale (1 denoting a very bad relationship, 5 an excellent relationship.). The theorized relationships are as follows: the more free time one has, the more they drink to pass the time, and the worse their relationship is with their family, the more they drink for comfort (*The same cave-at applies here, as with the previous relationship*). These are the relationships that will be explored below: A) The effects of alcohol use on the final grade; B) The effects of alcohol use on absences and the effects of absences on the grade; C) The effects of free time on alcohol use; D) The effects of family relations on alcohol use. Any further interesting relationships will be explored as warranted by the initial results (such as the effects of family relationship, given a lot of free time, on alcohol use).  
+  
+
+   **4.**  
+*Numerical and graphical exploration of relationships A through D.*  
+   
+
+**A and B** 
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Graph_AandB <- ggpairs(TheData, columns = c(30, 33, 34), legend = 1, title = "Alcohol Use, Absences, and Final Grade", mapping = aes(col = sex, alpha = 0.5), lower = list(combo = wrap("facethist", bins = 20)))
+
+Graph_AandB
+```
+  
+The above set of graphs explores the relationships between alcohol use, absences and the final grade. The results have been further divided by sex in the spirit of last week. A few noteworthy points can immediately be noticed. Firstly, there seems to be, overall, no statistically significant relationship between the number of absences and the final grade. This, if anything, is a troubling result for Portuguese teachers. Admittedly, with males there seems to be a somewhat statistically significant relationship. On the other hand, alcohol use would seem to predict both higher levels of absences and lower scores, although here too the difference between males and females is significant. 
+
+Since there is no theoretical reason for this division, it raises some questions over the data. As such, before delving into the numbers further, we need to examine the data more to see if the cause for these variations between sexes can be explained by abnormalities in the observations. Immediately two observations jump up from the data: in the column where absences are on the Y-axis, we can note two observations, both female, that could constitute outliers. To examine this further, we will carry out a regression analysis where the absences are the explanatory variable for final score, and a regression analysis where the alcohol use is the explanatory variable for absences. Both analysis will be then subjected to the residuals vs leverage test from last week, which will help us indicate whether some of the datapoints have an unreasonably high power to pull the models' predictions outwards towards themselves.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE, tidy=TRUE}
+Score_Absence_Reg <- lm(G3 ~ absences, data = TheData)
+summary(Score_Absence_Reg)
+plot(Score_Absence_Reg, which = c(5))
+
+Absence_Alc_Reg <- lm(absences ~ alc_use, data = TheData)
+summary(Absence_Alc_Reg)
+plot(Absence_Alc_Reg, which = c(5))
+```
+
+It seems that the two data points have such a high leverage, as to bring their validity into question. Of course, in the absence of reasoned proof that they are invalid, they should be left in. In the interest of this exercise, I have nevertheless decided to apply the rule of thumb that observations with a Cook's Distance higher than n/4 (where n is the number of observations) can be removed. Let us see what the end result is, after we apply this procedure to the data.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+HighLeverage <- cooks.distance(Score_Absence_Reg) > (4/nrow(TheData)) & cooks.distance(Absence_Alc_Reg) > (4/nrow(TheData))
+TheData_2 <- TheData[!HighLeverage,]
+Score_Absence_Reg_2<-lm(G3 ~ absences, data = TheData_2)  
+summary(Score_Absence_Reg_2)
+
+
+Absence_Alc_Reg_2<-lm(absences ~ alc_use, data = TheData_2)  
+summary(Absence_Alc_Reg_2)
+plot(Score_Absence_Reg_2, which = c(5))
+plot(Absence_Alc_Reg_2, which = c(5))
+```  
+  
+*The new Dimensions*
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+dim(TheData_2)
+```
+
+With the removal of just four observations with a Cook's distance higher than 4/n, as testified by the new dimensions, we can see that absences now function as a statistically significant predictor of academic performance. I would argue that despite the absence of observation specific reasons supporting the removal of the observations, the overall logical expectation that presence at class predicts performance, and the magnitude of change in the statistical significance of the results, warrants the removal of these values. As such, moving onward, this analysis relies on the now modified dataset. 
+
+Finally, to test these results against just the effects of alcohol use on the final grade and the effects of absences, given high alcohol use, we will conduct two more regression analysis:
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Score_Alc_Reg <- lm(G3 ~ alc_use, data = TheData_2)
+summary(Score_Alc_Reg)
+
+Score_Alc_Absen_Reg <- lm(G3 ~ absences, data = filter(TheData_2,alc_use>3))
+summary(Score_Alc_Absen_Reg)
+```
+  Looking at the results of the regression analysis, we can see that despite all the work that went into removing the high Cook's Distance observations, alcohol use on its own is still a stronger and statistically more significant predictor of poorer academic performance than the number of absences. We also see that the number of absences given high alcohol use does not provide anything better in terms of predictive power than just absences. As such, contrary to the originally proposed mechanism, while alcohol use is a statistically significant and strong predictor of absences (one move up the alcohol use scale corresponds to almost one full day of additional absences), absences themselves do not function as a strong predictor of poorer academic performance. In fact absences only explain approximately half of the change in final grade that is explained by alcohol use. We can as such conclude that there is strong evidence that while alcohol use results in poorer performance, it does not do that through absences.   
+  
+
+**C and D**
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Graph_CandD <- ggpairs(TheData_2, columns = c(24, 25, 34), legend = 1, title = "Family Relations, Free time, and Alcohol Use", mapping = aes(col = sex, alpha = 0.5), diag = list(combo = wrap("facethist", bins = 20)))
+
+Graph_CandD
+```
+  
+  As expected, both negative family relations and free time are statistically significant predictors of alcohol use. We can examine these in more detail with linear regression, as has been done below. We can see that both variables are statistically significant predictors of alcohol use. As for the hypothesized impact of poor family relations, given lots of free time, it does not have an effect larger than just poor family relations. In fact, given free time, poor family relations seem to have a lower effect, but this difference is not statistically significant:
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Alc_freetime_Reg <- lm(alc_use ~ freetime, data = TheData_2)
+summary(Alc_freetime_Reg)
+Alc_FamRel_Reg <- lm(alc_use ~ famrel, data = TheData_2)
+summary(Alc_FamRel_Reg)
+Alc_FamRel_freetime_Reg <- lm(alc_use ~ famrel + freetime, data = TheData_2)
+summary(Alc_FamRel_freetime_Reg)
+Alc_FamRel_Freetime_Reg <- lm(alc_use ~ famrel, data = filter(TheData_2, freetime>3))
+summary(Alc_FamRel_Freetime_Reg)
+
+
+```
+As such, we can conclude section 4 by summarizing that while alcohol has a negative effect of academic performance, and poor family relations and free time increase alcohol consumption, all of these have (while statistically significant) only have modest impact, if we look at R^2^: Alcohol use only explains approximately 2% of the variance in the final grades, while poor family relations and free time, even when taken together, only explain approximately 5% of the variance in alcohol consumption. As such, while we have some proof of causal relationships, those relationships are not strong. We can additionally reject the hypothesis that the mechanism by which alcohol consumption affects grades is the increased amount of absences.  
+  
+  
+  **5.**  
+*Logistic Regression of the above variables.*
+
+In the above analysis we have treated alcohol use either as an explanatory variable (A-B) or as a target variable (C-D) in a linear function. Here, alcohol use will be defined as a binomial variable, where individuals having an alcohol consumption higher than 2/low, will be labeled as "alcoholics." As such, individuals with alc_use of three or higher will belong to the category "alcoholics," while those with less will not. To model the other above variables within this framework will require the use of Logistic Regression, which calculates the probability of an individual belonging to a category (here, alcoholics), based on the model inputs. A probability higher than 0.5 will indicate belonging to a group.
+
+We will employ all the other variables used above, including the variable absences, since it did have a statistically significant relationship with alcohol use. Consequently we get the following Logistic Regression:
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+AA <- glm(alcoholics ~ famrel + freetime + absences + G3, data = TheData_2, family = "binomial")
+probabilities <- predict(AA, type = "response")
+TheData_2 <- mutate(TheData_2, probability = probabilities)
+TheData_2 <- mutate(TheData_2, prediction = probability>0.5)
+
+summary(AA)
+```  
+*The Odds Ratios and Their Confidence Intervals*
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+OR <- coef(AA) %>% exp
+CI <- confint(AA) %>% exp
+cbind(OR, CI)
+```
+
+In the above summary we can see that the variables used have a wide range of statistical significance. As the commonly accepted cut-off point for statistical significance is a p score of less than 0.05, alongside absolute z values higher than 2 and 95% confidence intervals that do not include 1, we can conclude that the variable G3, or the final grade, has no statistical significance on our model. As such, we can drop it going forward.
+* (*Confidence intervals going across 1 indicate that the 95% confidence interval contains the coefficient 1, indicating no relationship between the predictor and target variable.*)
+
+The odds ratios support our initial hypothesis. Since odds ratios higher than 1 indicate that the variable is positively correlated with the observation/individual belonging to the group (in this case alcoholics), both free time and absences positively predict belonging to the alcoholics group. 
+
+Since higher family relations negatively predict belonging to alcoholics, we can conclude that the hypothesized positive impact of bad family relations holds. 
+
+Nevertheless, as stated above, the impact of these variables is minor, falling close to even.
+
+(*As final grade is not statistically significant, it has been ignored*)  
+
+**6.**  
+The below numerical and graphical explorations detail the accuracy of the model without variable G3. While the plot would seem to indicate a rather random sorting of predictions, a closer examination carried out through the tabulation of predictions against the data showcase a more nuanced model. It is rather clear that the model over predicts non-alcoholics and if it does predict an alcoholic, there is (approximately) a 50/50 chance of that being prediction being right, but since the majority of cases are non-alcoholics, the model's training error is "only" 0.29, meaning that 29% of the predictions are incorrect. This is above mere random guessing, or flipping the coin, especially since the alcoholics and non-alcoholics are not split 50/50. Nevertheless, we can see both from the graph and the confusion matrix, that the model misses many, many cases where the individual does belong to the group "alcoholics." As such, it is not a good model.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+AAA <- glm(alcoholics ~ famrel + freetime + absences, data = TheData_2, family = "binomial")
+probabilities <- predict(AAA, type = "response")
+TheData_2 <- mutate(TheData_2, probability = probabilities)
+TheData_2 <- mutate(TheData_2, prediction = probability>0.5)
+
+summary(AAA)
+
+g <- ggplot(TheData_2, aes(x = probability, y = alcoholics, col = prediction))
+g + geom_point()
+
+table(alcoholics = TheData_2$alcoholics, prediction = TheData_2$prediction)
+
+
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+loss_func(class = TheData_2$alcoholics, prob = TheData_2$probability)
+```
+**BONUS**
+
+By using a ten-fold cross-validation, we can train the data on one-tenth of "TheData" and then check its accuracy (defined by the ratio of incorrect guesses as above) against the remaining nine sets of one-tenth of the data. This is done below. The ratio of 0.3 indicates that the model that was trained on one tenth of the data performs similarly within the rest of the data compared to the model trained on the whole data. It is worse than the one introduced in the DataCamp. I was able to find a better one after having played around with the above variables in connection with sex, failures and goout. 
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+loss_func <- function(class, prob) {
+  n_wrong <- abs(class - prob) > 0.5
+  mean(n_wrong)
+}
+
+cv <- cv.glm(data = TheData_2, cost = loss_func, glmfit = AAA, K = 10)
+#The amount
+cv$delta[1]
+```
+I was able to find a better model after having played around with the above variables in connection with sex, failures and goout. This has an error rate of 0.24 in a ten-fold cross-validation
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+AAAA <- glm(alcoholics ~ freetime + failures + sex + goout, data = TheData_2, family = "binomial")
+probabilities <- predict(AAAA, type = "response")
+TheData_3 <- mutate(TheData_2, probability = probabilities)
+TheData_3 <- mutate(TheData_3, prediction = probability>0.5)
+cv_2 <- cv.glm(data = TheData_3, cost = loss_func, glmfit = AAAA, K = 10)
+cv_2$delta[1]
+```
+
+**THE END!**

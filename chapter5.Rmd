@@ -1,0 +1,144 @@
+---
+title: "Week 5 - Dimension Reduction Techniques"
+author: "Kalle Kivinen"
+date: "11/24/2020"
+output: html_document
+---
+
+```{r, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(tidyr)
+library(FactoMineR)
+library(factoextra)
+library(viridis) 
+```
+
+## 1. Data Exploration
+
+This week's data analysis mostly deals with the human-dataset. The data contained a number of variables mapping human development and gender equality in 195 countries. This data was then cut down to eight variables. They are the following variables measuring development and gender equality in 195 countries:  
+    + Life.Expectancy refers to a citizens average life expectancy at birth  
+    + Education.Years is the amount of years a citizen is planned to spend in education  
+    + GNI.Per.Capita is the Gross National INcome adjusted for population  
+    + Maternal.Mortality is a ratio of deaths per 100,000 births  
+    + Teen.Birth is the number of births per 1,000 women ages 15 to 19.  
+    + Parliamentary.Participation is the ratio of women to men in parliament  
+    + Female.Secondary.Education is the percentage of females that attend secondary education  
+    + Female.Work is the percentage of females that participate in the labour force  
+  
+Below are simple bar-plots graphically showcasing the variables used this week. As the graphs show, most of these variables do not follow a gaussian distribution, meaning that they are not bell-curves. The only exception to this is the variable mapping the planned years a citizen is supposed to spend in school.
+
+Even further down, the reader can find the correlation plot, where "*" indicates statistical significance to the 0.05-level. As can be seen, three sets of variables emerge from the data:  
+    + Female.Work and Parliamentary.Participation, which are not strongly correlated with anything  
+    + Maternal.Mortality and Teen.Birth, which are strongly positively correlated only with one another.  
+    + The remaining variables on education, GNI, and life-expectancy, which are (semi) strongly positively correlated with each other and strongly negatively correlated with the preceding set of variables.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+
+Human <- read.table("Data/Human_Complete", header = TRUE, sep = "\t")
+
+
+GraphSet1 <- gather(Human) %>% ggplot(aes(value)) + geom_histogram(fill="darkgoldenrod1", bins=75) + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan"))
+GraphSet1
+
+correlated <-cor(Human) %>% round(2)
+correlated.p <- cor.mtest(Human)$p
+corrplot(correlated, method="circle", type="upper",cl.pos="r",tl.pos="d",tl.cex=0.5, p.mat = correlated.p, sig.level=0.05, insig = "label_sig", pch.cex = 1.5)
+
+summary(Human)
+```
+
+## 2. Pricipal Component Analysis on Non-Standardized Data
+
+Below, Principal Component Analysis, relying on Singular Value Decomposition, is applied to the non-standardized "Human"-data explored above. This analysis is expected to turn out somewhat skewed, as PCA relies on variance to identify the Principal Components. Consequently, variables with larger average values will have an unreasonably high impact on the analysis. 
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+PCA_NStand_Human <- prcomp(Human)
+PCA_NStand_Human
+Summa <- summary(PCA_NStand_Human)
+Summa
+Perc <- round(100*Summa$importance[2, ], digits = 1)
+PercLabl <- paste0(names(Perc), " (", Perc, "%)")
+biplot(PCA_NStand_Human, choices = 1:2, cex=c(0.25,0.5), col = c("tan", "darkgoldenrod1"), xlab = PercLabl[1], ylab = PercLabl[2], main = "Biplot of the Non-Standardized Human-Data", sub ="The PCA carried out on non-standardized data reveals little of use.", cex.sub = 0.5)
+```
+
+As expected, the graph can tell us very little, and PC1 purports to explain (essentially) all of the variation. Let us standardize the data and try again.
+
+## 3. Pricipal Component Analysis on Standardized Data
+
+By standardizing the variables in the "Human"-data, the PCA is able to work on variables with comparable variances. Accordingly, variables on scales where high values are expected will not have a disproportionately high impact on the calculations. As can be seen below, the biplot produced by the standardized data can offer valuable insights into the data.
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Stand_Human <- scale(Human)
+PCA_Stand_Human <- prcomp(Stand_Human)
+PCA_Stand_Human
+Summa2 <- summary(PCA_Stand_Human)
+Summa2
+Perc2 <- round(100*Summa2$importance[2, ], digits = 1)
+PercLabl2 <- paste0(names(Perc2), " (", Perc2, "%)")
+biplot(PCA_Stand_Human, choices = 1:2, cex=c(0.5,0.8), col = c("lightblue", "darkgoldenrod1"), xlab = PercLabl2[1], ylab = PercLabl2[2], main = "Biplot of the Standardized Human-Data", sub = "PCA indicating that female participation in labour force and parliament is not a good predictor of overall wellbeing of women", cex.sub=0.5) 
+```
+
+As the caption suggests, the data seems to indicate that while participation of women in the labour-force and political decision-making are important components of gender equality, they do not predict the overall (physical) well-being of women. More of this below. The reason why our standardized data is able to provide more insights into this, is due to the standardized means and variations that it contains. PCA creates its principal components (PC) by calculating a line of best fit through the observations of the variables that account for most of the variance (while maintaining the sum-of-squares for the resulting coefficients at =1). The second PC is calculated from the remaining variables similarly, but in such a way that it does not correlate with the first PC. With standardized data, the variations are not affected by the scales of the units of the variables and are as such comparable - no single variable can account for most of the variance due to the large values it takes. Conversely, with the non-standardized data, the variable measuring the per-capita GNI of the countries had the largest explanatory power, since the values that its variation takes are in the tens-of-thousands. The rest of the variables take much lower values (The second highest absolute values are taken by maternal mortality and even that has a range of 0 to 1000), and consequently they seemingly account for less of the variation in the data. This is why we see PC1 correlate almost 100% with the variable GNI.per.Capita in the biplot run on non-standardized variables and why the said variable seems to have a disproportionately high variation among the dataset.
+
+## 4. Interpreting PC1 and PC2
+
+As indicated above, high labour and political participation of women are not short hand for high level of well being among women. We can see that the data is principally divided between countries where there are high levels death at childbirth and adolescent births, and countries where there are high levels of life-expectancy, education and GNI. We might say that this pricipal component mostly maps reproductive health. Indeed, the former two variables are highly correlated between each other, which is not a surprise: giving birth at a young (teen) age creates a greater risk of death at childbirth due to the fact that the mother's body is not yet fully developed. The latter four variables on the other hand predict lower levels of maternal mortality and adolescent birth, partly because higher levels of education are known to predict a lower fertility rates, and a delayed start to getting children among women, partly because higher GNI predicts better health care, both contributing to a higher life-expectancy. 
+
+On the other hand, labour and political participation presuppose neither of these sets of variables - they are almost completely uncorrelated with them. This indicates that women participate in the labour force and parliament even in poorer countries with more traditional conceptions of child-rearing a worser health-care. On the other hand, it perhaps also indicates that *most countries perform suboptimally,* when it comes to the participation of women in politics and the labour force. As such those two variables are bad predictors of development either in terms of money, education or health.
+
+## 5. Multiple Correspondence Analysis on the Tea Data
+
+The tea-dataset, according to the information provided by ?tea, includes three sets of variables: the first 18 relate to tea drinking habits, the next 5 map personal details (with age featuring twice, once as integers and once as a categorical variable with five categories), and the final 13 questions mapping product perception. For this section I have chosen to divide the variables into two sets: the active, habit-variables being fed into the MCA and the supplementary personal detail variables, which will be added as colors into the plot to see if we can find links between these supplementary variables and the two dimensions of variability showcased in the plot. The product-perception variables will be excluded in this analysis. Furthermore, only the categorical age variable will be included.
+
+Below, simple bar graphs have been created alongside the structure and dimensions of the remaining data. The reader is welcome to explor the graphs, but since their interpretation is not a requested part of this analysis, a few short comments should suffice:
+- We can see that there is a clear distinction between places where tea is drunk (home, friends) and where and when it is not (pub, restaurant, dinner, lunch, work)
+- People seem to drink Earl Grey frequently
+- Slightly more women answered the survey.
+
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+library(FactoMineR)
+data(tea)
+?tea
+dim(tea)
+str(tea)
+Keep <- c("breakfast","tea.time","evening","lunch","dinner","always","home","work","tearoom","friends","resto","pub","Tea","How","sugar","how","where","price","sex","SPC","Sport","age_Q","frequency")
+Tea_Who_And_How <- dplyr::select(tea, one_of(Keep))
+
+gather(Tea_Who_And_How[ ,c(1:12)]) %>% ggplot(aes(value)) + geom_bar(fill="darkgoldenrod1") + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+gather(Tea_Who_And_How[ ,c(13:18,23)]) %>% ggplot(aes(value)) + geom_bar(fill="darkgoldenrod1") + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+gather(Tea_Who_And_How[ ,c(19:22)]) %>% ggplot(aes(value)) + geom_bar(fill="darkgoldenrod1") + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5))
+
+```
+
+Moving on to the actual Multiple Correspondence Analysis. Below, the reader can first find the variable biplot of the MCA, where variables in red denote active variables and variables in green supplementary variables. It is first worth noting that the two dimensions identified by the MCA account together for only 16.7% of the principal inertia, meaning that most of the variation in the data is left unaccounted for. In fact, the summary-statistic shows that increasing the amount of dimensions has little effect on this, with six dimensions only accounting for 36.8% of the principal inertia. 
+
+Be that as it may, we will continue to work with these results. The theory that I offer based on the below information is that dimension 1 maps what could be generalised as "tea consumption." We see the frequency of tea-drinking increase as we move from left to right. Additionally, the variables on the right-hand side of the plot indicate higher levels of tea consumption - to the point that tearooms are visited. The left-hand side showcase answers indicating little interest in tea: the tea is cheap, from the chain store and the people do not generally choose tea as their drink when in restaurants, at home or at friends.
+Dimension 2 on the other hand maps "tea enjoyment", or something similar. We see the higher values correspond with upscale tea bought from a teashop in loose-form. The lower variables reflect a more basic approach to tea. But as said, even if correct, these dimensions and their interpretations do not explain a lot of the variance in the data.
+
+Consequently, it is not surprising that when we apply color to the plots to map the respondents by their belonging to different categories in the four supplementary variables, we have a hard time identifying any significant linkages. Age does not seem to be linked to either of the dimensions identified. With sports, there *seems* to be indication of individuals that do not take part in sport being also lesser tea drinkers, but the indications for this is weak. Similarly, students and elderly seem to drink more tea when it comes to employment status. Perhaps the most clearest linkage is between gender and dimension 1, where females are more prominent at the right-hand side of the scale, perhaps indicating that women tend to be bigger casual tea drinkers, with men more often opting for other drinks, or drinking finer teas, as indicated by the higher amount of men at the top of dimension two.
+
+Overall, these plots are not helpful. Primarily due to their low ability to account for variation in the data, and also, perhaps consequently, due to the absence of other linkages that they might have identified. 
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Red_Dim <- MCA(Tea_Who_And_How, quanti.sup = NULL, quali.sup=19:22,
+    graph = FALSE)
+
+
+fviz_mca_var(Red_Dim, invisible=c("ind"), repel = TRUE)
+r1 <- fviz_mca_ind(Red_Dim, invisible=c("var"), habillage = Tea_Who_And_How$sex, title = "Tea Habits by Sex") + scale_color_viridis(discrete = TRUE, option = "D")
+r1
+r2 <- fviz_mca_ind(Red_Dim, invisible=c("var"), habillage = Tea_Who_And_How$age_Q, title = "Tea Habits by age") + scale_color_viridis(discrete = TRUE, option = "D")
+r2
+r3 <- fviz_mca_ind(Red_Dim, invisible=c("var"), habillage = Tea_Who_And_How$SPC, title = "Tea Habits by Employment Status") + scale_color_viridis(discrete = TRUE, option = "D")
+r3
+r4 <- fviz_mca_ind(Red_Dim, invisible=c("var"), habillage = Tea_Who_And_How$Sport, title = "Tea Habits by Sports Habits")+ scale_color_viridis(discrete = TRUE, option = "D")
+r4
+summary(Red_Dim)
+```

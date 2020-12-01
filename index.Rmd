@@ -13,13 +13,15 @@ output:
 
 ***
 
-# Introduction to Open Data Science - Course Project
+# Introduction to Open Data Science - Week 1, Intro
 
 ```{r child = "chapter1.Rmd"}
 # This will include Chapter 1 (that is updated in its own file) in the document.
 ```
   
 ***
+
+# Introduction to Open Data Science - Week 2, Regression
   
 ```{r child = "chapter2.Rmd"}
 # This will include Chapter 2 (that is updated in its own file) in the document.
@@ -27,5 +29,27 @@ output:
 
 ***
 
-(more chapters to be added similarly as we proceed with the course!)
+# Introduction to Open Data Science - Week 3, Logistic Regression
+  
+```{r child = "chapter3.Rmd"}
+# This will include Chapter 3 (that is updated in its own file) in the document.
+```
 
+***
+
+# Introduction to Open Data Science - Week 4, Linear Discriminant Anlaysis and K-Means
+  
+```{r child = "chapter4.Rmd"}
+# This will include Chapter 4 (that is updated in its own file) in the document.
+```
+
+***
+
+
+# Introduction to Open Data Science - Week 5, Dimension Reduction Techniques
+  
+```{r child = "chapter5.Rmd"}
+# This will include Chapter 5 (that is updated in its own file) in the document.
+```
+
+***

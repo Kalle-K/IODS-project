@@ -1,0 +1,232 @@
+---
+title: "Week 4 - Linear Discriminant Analysis and K-Means"
+author: "Kalle Kivinen"
+date: "11/17/2020"
+output: html_document
+---
+
+## 2. The "Boston"-dataset  
+  
+The dataset, "Boston," used in this analysis can be dowloaded with the "MASS"-package. As such, it can be seen as a training dataset of sorts. It contains 14 variables with a (potential) connection to housing values in the suburbs of Boston. These variables are:
+
+| Variable  | Explanation                                                           |
+|:---------:|-----------------------------------------------------------------------|
+| "crim"    | per capita crime rate by town.                                        |
+| "zn"      | proportion of residential land zoned for lots over 25,000 sq.ft.      |
+| "indus"   | proportion of non-retail business acres per town.                     |
+| "chas"    | Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).|
+| "nox"     | nitrogen oxides concentration (parts per 10 million).                 |
+| "rm"      | average number of rooms per dwelling.                                 |
+| "age"     | proportion of owner-occupied units built prior to 1940.               |
+| "dis"     | weighted mean of distances to five Boston employment centres.         |
+| "rad"     | index of accessibility to radial highways.                            |
+| "tax"     | full-value property-tax rate per \$10,000.                            |
+| "ptratio" | pupil-teacher ratio by town.                                          |
+| "black"   | 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.       |
+| "lstat"   | lower status of the population (percent).                             |
+| "medv"    | median value of owner-occupied homes in \$1000s.                      |
+
+
+```{r setup, include=FALSE}
+library(dplyr)  
+library(tidyr)  
+library(ggplot2)
+library(GGally)
+library(corrplot)
+```
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+library(MASS)
+data("Boston")
+str(Boston)
+```
+  
+Each variable has 506 observations/points of data and the below computational analysis would seem to indicate that it contains no empty points of data and each of the 14x506=7084 observations is numeric/integer. Some observations are ratios, some percentages, and at least one (chas) is a dummy variable coded 0/1.  
+```{r,warning=FALSE,message=FALSE}
+Empty <- 0
+for (x in row(Boston)){
+  if (is.na(x) == TRUE){
+    Empty <- Empty+1
+  }
+}
+
+Numer <- 0
+for (x in row(Boston)){
+  if (is.numeric(x) == TRUE){
+    Numer <- Numer+1
+  }
+}
+
+```
+## 3. The Graphical Overview of the Data.  
+  
+Below, the reader can find the simple bar graphs of each variable, as well as a summary of each examined variable:
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+a <- gather(Boston) %>% ggplot(aes(value)) + geom_bar(fill="darkgoldenrod1") + facet_wrap("key", scales = "free") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan"))
+a
+
+summary(Boston)
+```
+
+As the above general overview indicates, the data takes various values in various ranges - as one would expect from a dataset containing various different measures. Commenting on all the distributions seems pointless at first sight, but most of the graphs indicate some interesting things.
+
+To begin with, we see the age-graph indicate an aging city. More importantly we see that its automatic scale seems off. Either there is a high amount of areas in the city where the proportion of buildings built before 1940 close to 100, or the dataset has a typo. Or, as a final thought that seems the most likely: many of properties surveyed for this dataset come from the same Boston town/area and hence share exactly the same variable observations for some area-specific variables.
+
+We see the black-graph empty. Yet again, a closer examination (carried out below) shows that the data takes some interesting values. I do not have the knowledge to say what the measure "1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town" should indicate, but a approx. 120 of the properties seem to get **a** value close to 397, while other values occur only once. In fact, the Summary statistic presented above shows that the value is probably 396,90 and that the variable is also curious since most of its observations are within the range of 370 and 400, but its smallest observation is 0.32. It might be that the small observation has not been multiplied by 1000 as per the formula, since the result would come close to the expected range. Yet again, this can be a sign of a typo, or something else going on. And as above, the repetition of one value might be explained by many of properties surveyed for this dataset coming from the same Boston town/area and hence sharing exactly the same variable observations for some area-specific variables.
+
+The Crim-graph also looks empty, but again, the more detailed look below shows that most values range from 0 to 1, as one would expect from a per-capita rate. The fact that the general graph above has a range of 0 to 75 would indicate a typo or some placeholder value. Perhaps certain observations have been multiplied by hundred to give a percentage, or the person recording the obervation has forgotten a dot/comma. This would seem to be the case based on the summary statistic, since the max-values are high above the median and mean.
+
+The dis-graph looks empty as well, but the below closer look shows the granular level of observations. With no aggregation, the single lines disappear from the graph when it is extended to contain all values. The summary statistic indicates nothing out of the ordinary.
+
+The final empty-appearing graph, indus, seems to suffer from the same issue as the black-graph. As one can see below, most value-counts range between 0 and 10, but around the 17-mark there seems to be one value with a high count, approx 120, of observations. This same issue can also be observed in the tax-, rad-, and p-ratio- graphs, although **no** detailed look is carried out below. This is further evidence for the fact many of properties surveyed for this dataset might come from the same Boston town/area and hence share exactly the same variable observations for some area-specific variables.
+
+Finally, the zn-graph looks odd as well, but I would argue that that is just the result of strict zoning-laws prohibiting the amount of large properties in most areas (observe the large count in value "0")
+
+
+
+
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+
+
+b <- ggplot(data = Boston, mapping = aes(x = crim)) + geom_bar(fill="darkgoldenrod1") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + xlim(0,1)
+
+b
+
+c <- ggplot(data = Boston, mapping = aes(x = dis)) + geom_bar(fill="darkgoldenrod1") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + xlim(1,2)
+
+c
+
+d <- ggplot(data = Boston, mapping = aes(x = black)) + geom_bar(fill="darkgoldenrod1") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + xlim(350,400)
+
+d
+
+e <- ggplot(data = Boston, mapping = aes(x = indus)) + geom_bar(fill="darkgoldenrod1") + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan")) + xlim(0,20)
+
+e
+```
+  
+As for the relationships between the variables, the below matrix shows the correlations of each varibale paired with each of the ohters. Of note is the fact that the matrix seemingly indicates that each value has some statistically significant relationship with one each of the other variables. Of note is the only exception, the chas-variable, which is also the only dummy variable. An interesting question in this regard is why the chas variable is the only one that does not have statistically significant correlations with most other variables. The first answer is simple: because the fact that a tract bounds the river has no statistically significant impact on many of the other variables. The second option comes down to the inner workings of R - it might be that the cor.mtest-function used here to map p-values does not function well for dummy variables. No mention of this possibility is given by the ?cor.mtest-command. 
+
+On the other hand, it is perhaps not surprising that variables that are expected to be significant predictors of housing prices, also have statistically significant correlations which one-another. Out of these correlations a few should be highlighted in preparation for the coming faces. The variable "crim" (per-capita crime rate by town) seems to a a strong, statistically significant positive correlation with high property-tax properties, as well as properties with easier access to radial highways. Property-crime is a good explanatory factor for these correlations - high tax- and rad-variables indicate high-value targets(former) and/or easy get-away and access options(latter).
+
+higher levels of industry (indus), house age (age), air pollution (nox), pupil-to-teacher ratio (ptratio), and population's lower status all have a weaker positive correlation with crime rate. This perhaps indicates a second category of neighborhoods compared to the above: the older impoverished industry areas with less access to good education. 
+
+Both higher median value and longer distance from employment centers correlated weakly and negatively with a higher crime rate. I have a hard time explaining this. Perhaps it is due to the existence of middle-class suburbs, which are not attractive to property theft due to distance to a poor city center? This conclusion is perhaps supported by the strong negative correlation between the dis-variable on one hand and the indus-, nox-, and age-variables, which would seem to indicate that the (employment) centers of the city are older industry neighborhoods. All of this is of course anecdotal in the absence of clearer information. 
+
+Finally, the black-varibale seems to be negatively and weakly correlated with a higher crime rate, but as I do not understand the calculations behind the variable, it is rather hard to interpret the (potential) meaning of the correlation - as such I will drop it going forward.
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+
+?cor.mtest
+correlated <-cor(Boston) %>% round(2)
+correlated.p <- cor.mtest(Boston)$p
+corrplot(correlated, method="circle", type="upper",cl.pos="r",tl.pos="d",tl.cex=0.5, p.mat = correlated.p, sig.level=0.05, insig = "label_sig", pch.cex = 1.5)
+
+```
+  
+## 4. Standardization and Categorization  
+  
+Below the reader can find a summary of the standardized Boston variables. All of them can be seen to share a mean of zero, which is of course by definition a feature of a standardized variable. They are also all on the same scale now, which means that they can be compared to one another easier - although that would not be immediately clear from the data, since the value-distributions still retain their curious aspects: for example with the variable "black," the min is still far-far-far to the left from the rest of the data. Additionally, the standardized binomial variable "chas" has arguably become non-sensical. The old value of 0 has been replaced by -0.2723 and the old value for 1 has been replaced by 3.6648.  
+
+It should also be noted that none of the variables can be fully standardized into standard normal distributions, since they do not adhere to a normal distribution to begin with. This is, at least in, probably due to the (theorized) over representation of one neighborhood in the dataset.
+
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+Standard <- scale(Boston)
+Standard <- as.data.frame(Standard)
+Standardx <- as.data.frame(Standard)
+summary(Standardx)
+```
+  
+The reader can also note that in this second set, the crim-varibale has been replaced by the Crime factor-variable, as per instructions, and the chas-variable has be returned to its original binomial state.  Even further down, the reader can finally find the test set with the removed Crime variable, after the correct answers had been saved.
+  
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+Categ <- quantile(Standard$crim)
+Categ
+
+Crime <- cut(Standard$crim, breaks = Categ, include.lowest = TRUE, labels = c("Lowest", "Lower", "Higher", "Highest"))
+
+
+Standard <- dplyr::select(Standard, -crim)
+Standard <- dplyr::select(Standard, -chas)
+
+Standard <- data.frame(Standard, Crime)
+Standard <- data.frame(Standard, Boston$chas)
+
+summary(Standard)
+
+# Creating the Training and Test Sets
+n <- nrow(Standard)
+
+index <- sample(n,  size = n * 0.8)
+
+TrainSet <- Standard[index,]
+TestSet <- Standard[-index,]
+Correct <- TestSet$Crime
+TestSet <- dplyr::select(TestSet, -Crime)
+
+summary(TestSet)
+```
+  
+## 5. Linear Discriminant Analysis (LDA)  
+
+Despite the fact that none of the variables adhere to the assumption normal distribution required by the LDA, nor is the Chas-variable continuous as is usually expected, below the reader can find the required LDA-(bi)plot. It contains the categorical crime rate as the target variable and all of the remaining variables as predictor variables (even the black-variable, despite what I said earlier about not using it.) Observing both the biplot and LDA data, we can see that LD1 explains 96 percent of the between-group variance, while LD2 explains three percent and LD3 one percent.
+
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+LDA.mod <- lda(Crime ~ ., data = TrainSet)
+LDA.mod
+
+# the function for lda biplot arrows
+LDA.nuoli <- function(x, myscale = 1, arrow_heads = 0.1, color = "darkgoldenrod1", tex = 0.75, choices = c(1,2)){
+  heads <- coef(x)
+  arrows(x0 = 0, y0 = 0, 
+         x1 = myscale * heads[,choices[1]], 
+         y1 = myscale * heads[,choices[2]], col=color, length = arrow_heads)
+  text(myscale * heads[,choices], labels = row.names(heads), 
+       cex = tex, col=color, pos=3)
+}
+
+classes <- as.numeric(TrainSet$Crime)
+
+plot(LDA.mod, dimen = 2, col = classes, pch = classes)
+LDA.nuoli(LDA.mod, myscale = 2)
+
+```
+
+## 6. LDA for Prediction  
+  
+The table below showcases the cross-tabulated results of the predictions against the actual categories. We can see that the model predicts rather accurately the group belonging in for properties in higher and high crime rate areas, while it struggles a bit more in the lower and lowest categories. Indeed the model seems to slightly over-predict higher crime rates, especially when provided with data of a property in a lower/lowest crime rate area. Nevertheless, it out-performs simple quessing, under which a property would have an almost equal 25% chance in belonging to any of these categories, as indicated in the previous section's model output. As such, a simple random division of the properties into four equal-sized groups would result, on average, in three incorrect predictions per one correct prediction. Such odds are much worse than the odds for the model correctly predicting a property belonging to a lowest crime rate area.
+
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+
+Prediction <- predict(LDA.mod, newdata = TestSet)
+
+table(correct = Correct, predicted = Prediction$class)
+```
+  
+## 7. K-Means Analysis
+
+The below two graphs showcase the results of the final K-Means analysis. The first graph details the change the total within cluster sum of squares as we increase the amount of clusters from 1 to 14. The aim is to use the graph to find the optimal amount of clusters. As it is clear that a more granular level will lead to smaller within cluster sum of squares (WCSS) without necessarily being a better grouping devise (Consider for example that the smallest within cluster sum of squares comes from having only one observation in each "cluster", meaning that no clustering has been done), we need to find a point where the WCSS drops drastically, indicating an amount of clusters that is significantly more precise than a smaller amount, but not significantly less precise than a larger amount. The first graph indicates that that point is two (2) clusters.
+
+As for the pairs analysis produced by the clustering of pairs of variables into two clusters, we will only discuss the top row/first column of the graphs, which relate to the crime rate. This is done for purposes of limiting the discussion to the relevant aspects and not covering each of the 182 squares. What we need to keep in mind is that K-Means analysis that clusters into two groups attempts to find sets of two sets of data, where the total (in this case) euclidean absolute distances to the group mean are the smallest. If we were to have a single group which shares many of it observation values, then it would be expected, that such a group would repeat itself in each graph. And, indeed, we see most of the crime-graphs maintain a very similar, flat/narrow red-group structure throughout the groupings. To me, this is further evidence that the 120 uncommonly consistently-valued observations that section 2 identified in multiple variables come from a single group of properties from the same area. Perhaps the data showcase something else as well, but hopeflly this will suffice. This is already a long text.
+
+```{r warning=FALSE,message=FALSE,echo=FALSE}
+
+Standard2 <- scale(Boston)
+Standard2 <- as.data.frame(Standard2)
+Standard2 <- dplyr::select(Standard2, -chas)
+Standard2 <- data.frame(Standard2, Boston$chas)
+
+Euclid <- dist(Standard2)
+summary(Euclid)
+
+set.seed(200)
+
+MaxK <- 14
+
+
+KAnalysis <- sapply(1:MaxK, function(k){kmeans(Standard2, k)$tot.withinss})
+
+qplot(x = 1:MaxK, y = KAnalysis, geom = 'line') + theme(panel.background = element_rect(fill = "aliceblue"), strip.background = element_rect(fill = "tan"))
+
+km <-kmeans(Standard2, centers = 2)
+pairs(Standard2, col = km$cluster)
+```
