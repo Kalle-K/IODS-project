@@ -12,6 +12,6 @@ output:
 - I want to learn open data science.  
 - I am worried the workload will be too much.  
 - I look forward to the course.  
-- I hope I will figure out the specifics of git and rstudio.
+- I hope I will figure out the specifics of git and rstudio.  
 
 **Here's the [link](https://github.com/Kalle-K/IODS-project) to by GitHub repository.**
