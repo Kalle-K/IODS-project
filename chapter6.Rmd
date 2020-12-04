@@ -126,7 +126,7 @@ What the above graph shows is that variance in the results of groups 1 and 3 are
 
 ```{r,warning=FALSE,message=FALSE,echo=FALSE}
 RAT_Change <- RAT_L_STND %>%
- select(stdweight, Weight, Time, Group) %>%
+  dplyr::select(stdweight, Weight, Time, Group) %>%
   filter(Time ==1 | Time ==29 | Time == 64)
 
 RAT_Change$Time <- as.factor(RAT_Change$Time)
@@ -144,16 +144,16 @@ As is clear from these graphs, each group experience growth, but as the second g
 
 ```{r,warning=FALSE,message=FALSE,echo=FALSE}
 Group1 <- RAT_L_STND %>%
- select(stdweight, Weight, Time, Group) %>%
+  dplyr::select(stdweight, Weight, Time, Group) %>%
   filter(Group ==1, Time ==1 | Time == 64)
 
 Group2 <- RAT_L_STND %>%
- select(stdweight, Weight, Time, Group) %>%
+  dplyr::select(stdweight, Weight, Time, Group) %>%
   filter(Weight < 550, Group ==2, Time ==1 | Time == 64)
 summary(Group2)
 
 Group3 <- RAT_L_STND %>%
- select(stdweight, Weight, Time, Group) %>%
+  dplyr::select(stdweight, Weight, Time, Group) %>%
   filter(Group ==3, Time ==1 | Time == 64)
 
 t.test(Weight ~Time, data = Group1, var.equal = TRUE)
