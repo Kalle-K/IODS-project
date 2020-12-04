@@ -1,0 +1,258 @@
+---
+title: "Week 6 - Longitudinal Data"
+author: "Kalle Kivinen"
+date: "12/2/2020"
+output: html_document
+---
+
+```{r, include=FALSE}
+
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(tidyr)
+library(FactoMineR)
+library(factoextra)
+library(viridis) 
+library(lme4)
+library(ggpubr)
+```
+
+## The MABS Chapter 8 Analysis with the RATS data.
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+RATS <- read.csv("data/RATS")
+RAT_Long <- read.csv("data/RAT_Long")
+# Refactoring ID and Group: 
+RAT_Long$ID <- factor(RAT_Long$ID)
+RAT_Long$Group <- factor(RAT_Long$Group)
+```
+
+### Introduction
+
+The RATS dataset measures the body weight of three groups of rats at various points in time. The groups are differentiated by the diets they were fed and their weight is measured in grams. Below the reader can find a table of the RATS dataset in wide and long form. The difference between these two forms of data is covered in the data-wrangling exercise.
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+head(RATS, n=nrow(RATS))
+head(RAT_Long, n=30)
+```
+### The Analysis
+To initiate the exploration of the data, we can run it through some graphical tools. As MABS chapter 8 notes, these graphical approaches, together with the summary measure approach, provide a *quick and dirty* way of analysing the data. To start the analysis, we will begin by handling the dataset graphically to extract information.   
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+ggplot(RAT_Long, aes(x = Time, y = Weight, linetype = ID, col = ID)) +
+  geom_line() +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ Group, labeller = label_both) +
+  theme(legend.position = "none") + 
+  scale_y_continuous(limits = c(min(RAT_Long$Weight), max(RAT_Long$Weight))) +   scale_color_viridis(discrete = TRUE, option = "D") 
+```
+   
+The groups showcase the "Tracking"-effect, whereby larger starting values predict larger ending values. This effect applies as a probabilistic predictor. Ie. a larger starting value does not *determine* a larger ending value, it merely *makes it more probable*. As such, larger starting values do not always translate to larger ending values. But, most often they do.
+
+To really bring out the effects of "tracking," we need to standardize the data. Understanding the effects of "tracking" is important, because otherwise we are unable to truly delimit the effects of the diet from the effects of the starting size.    
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+RAT_L_STND <- RAT_Long %>%
+  group_by(Time) %>%
+  mutate(stdweight = (Weight - mean(Weight))/sd(Weight)) %>%
+  ungroup()
+
+ggplot(RAT_L_STND, aes(x = Time, y = stdweight, linetype = ID)) +
+  geom_line(aes(col = ID)) +
+  scale_linetype_manual(values = rep(1:10, times=4)) +
+  facet_grid(. ~ Group, labeller = label_both) +
+  theme(legend.position = "none") + 
+  scale_y_continuous(limits = c(min(RAT_L_STND$stdweight),
+  max(RAT_L_STND$stdweight))) + 
+  scale_color_viridis(discrete = TRUE, option = "D")
+```   
+   
+The above graphs showcase the effects of both tracking and time on the datasets. In a standardized format, we are able to see that the varying diets have little effect on the weights of the mice. This means that starting size and growth-caused-by-aging explain much of the change. In fact, only group two (if we ignore the full straight line) shows compelling signs of growth brought on by the diet alone. Groups one and three seem to follow the standard pattern.
+
+Moving on to the summary graph, we summarize the data through the means of each group.     
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+RAT_Sumr <- RAT_L_STND%>%
+  group_by(Group, Time) %>%
+  summarise(mean = mean(Weight), se =
+  sd(Weight)/sqrt(length(unique(RAT_L_STND$Time)))) %>%
+  ungroup()
+ggplot(RAT_Sumr, aes(x = Time, y = mean, linetype = Group, shape = Group, color=Group)) +
+  geom_line() +
+  scale_linetype_manual(values = c(1, 2, 3)) +
+  geom_point(size=3) +
+  scale_shape_manual(values = c(1, 2, 3)) +
+  geom_errorbar(aes(ymin=mean-se, ymax=mean+se, linetype="1"), width=0.3) +
+  theme(legend.position = c(0.95, 0.43)) +
+  scale_y_continuous(name = "mean(Weight) +/- se(Weight)") +
+  scale_color_viridis(discrete = TRUE, option = "D")
+```   
+
+As we are interested in the general, or *mean* effect of the diets on the mice, the above plot provides us with plenty of information. It shows us that group 2 has the fastest growth in weight out of the three groups. Group 3 has the second fastest growth, while group 1 remain almost stagnant. 
+
+This is not, though, the end of the analysis. We need to figure out whether certain observations are outliers and consequently contribute excessively to the results. The box plot graph is a good approach to determine this.   
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+ggplot(RAT_L_STND, aes(x = factor(Time), y = Weight, fill = Group)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("#FDE725FF", "#55C667FF", "#440154FF"))
+```   
+   
+As is clear from the data, we are able to observe an outlier in each group. In both groups one and three, the outlier pulls the averages down, whereas with group two it increases it. There are certain situation where this might be problematic - such as when measuring the weights of mice at specific points in time - but if we are interested in the growth rates (as is the case here), these outliers do not seem to have a significant effect. This is because their variance is stable throughout the time frame. As such the outliers do not contribute to the difference in change of outcome between groups. 
+
+In the book the summary measure that is applied to the data is the measurement of differences in the *means* of the groups. This is a good approach for the BPRS data, because it is supposed to track the effectiveness of a treatment. As the RATS-data measures the effect of a diet on the growth of mice, we would be better served by the use of the regression coefficient as the summary measure - as per the MABS chapter 8, page 162. Nevertheless, this comes so close to the work done in chapter 9 that despite the poorer fit of the *mean*-summary measure, we will apply it here to the RATS data. As such, we will treat the diet as a once-off measure. Conceptually, this approach could be justified - for example - when measuring the effects of the diet of adolescent rats on their development to mature, fully grown rats. In such a case, the effects are cemented in - as if we were talking about the effects of a treatment. Nevertheless, there is no reason to ignore the baseline in this case and as such that part will not be carried out.     
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+
+RAT_Summary <- RAT_L_STND %>%
+  group_by(Group, ID) %>%
+  summarise(mean=mean(Weight)) %>%
+  ungroup()
+
+ggplot(RAT_Summary, aes(x = Group, y = mean)) +
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom = "point", shape=23, size=4, fill = "white") + scale_y_continuous(name = "Mean Weight")+
+  scale_color_viridis(discrete = TRUE, option = "D")
+
+RAT_Summary2 <- filter(RAT_Summary, mean < 550)
+
+ggplot(RAT_Summary2, aes(x = Group, y = mean)) +
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom = "point", shape=23, size=4) +
+  scale_y_continuous(name = "Mean Weight") +
+  scale_fill_manual(values=c("#FDE725FF", "#55C667FF", "#440154FF"))
+
+```     
+   
+What the above graph shows is that variance in the results of groups 1 and 3 are negligeble, while group 2's variance is somewhat stronger. Also, as noted above, each group has an outlier, but only group 2 has an outlier which is clearly raising the mean of the 2nd group. Accordingly, as we're examing the means, the second graph showcases the groups with the clear outlier removed. We can see that after the removal of the outlier, the groups have very similar profiles in relation to their means, only their value changes, with group 1 having the smallest, group 3 the largest and group 2 in between. With knowledge of tracking, these results do not really tell us that much about the diet - they simply indicate that the mice were different sizes to start with. What we can do additionally, is to plot the average change in weight for each group from the start of the measurement to its end.   
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+RAT_Change <- RAT_L_STND %>%
+ select(stdweight, Weight, Time, Group) %>%
+  filter(Time ==1 | Time ==29 | Time == 64)
+
+RAT_Change$Time <- as.factor(RAT_Change$Time)
+RAT_Change <- filter(RAT_Change, Weight < 550)
+ggplot(RAT_Change, aes(x= Group, y= Weight, color = Time)) + 
+  geom_boxplot() +
+  scale_color_viridis(discrete = TRUE, option = "D")
+
+ggplot(RAT_Change, aes(x= Group, y= stdweight, color = Time)) + 
+  geom_boxplot() +
+  scale_color_viridis(discrete = TRUE, option = "D")
+```    
+   
+As is clear from these graphs, each group experience growth, but as the second graph shows, only the 2nd groups experiences above-average growth, with Group 1 following the standardized growth and Group 3, in fact, falling behind. This could - theoretically - be due to the diets. To get more formal statistical proof of this relation, we can run the data through a t-test.   
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+Group1 <- RAT_L_STND %>%
+ select(stdweight, Weight, Time, Group) %>%
+  filter(Group ==1, Time ==1 | Time == 64)
+
+Group2 <- RAT_L_STND %>%
+ select(stdweight, Weight, Time, Group) %>%
+  filter(Weight < 550, Group ==2, Time ==1 | Time == 64)
+summary(Group2)
+
+Group3 <- RAT_L_STND %>%
+ select(stdweight, Weight, Time, Group) %>%
+  filter(Group ==3, Time ==1 | Time == 64)
+
+t.test(Weight ~Time, data = Group1, var.equal = TRUE)
+t.test(Weight ~Time, data = Group2, var.equal = TRUE)
+t.test(Weight ~Time, data = Group3, var.equal = TRUE)
+```   
+   
+The T-test analysis indicates rather clearly, that all differences in mean outcome are statistically significant. The clearly higher statistical significance of group 1 results is explained by the higher number of observations, resulting in more reliable observation of true differences
+
+The incorporation of baseline measures is not done in this analysis, as the focus is on the *change* in weight - as opposed to the actual weights. The former is not affected by the higher starting weights. Furthermore, as there are no missing values, the tricks used in MABS Chapter 8 are not necessary here.   
+
+
+## The MABS Chapter 9 Analysis with the BPRS data.
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+BPRS <- read.csv("data/BPRS")
+BP_Long <- read.csv("data/BP_Long")
+# Refactoring ID and Group: 
+BP_Long$treatment <- factor(BPRS$treatment)
+BP_Long$subject <- factor(BPRS$subject)
+```   
+### Introduction    
+
+The BPRS dataset covers 40 male subjects who were randomly assigned to one of two treatment groups for psychiatric issues. Each subject was rated with the BPRS-measure, or the "brief psychiatric rating scale (BPRS)," which is used to evaluate patients suspected of having schizophrenia. The BPRS assesses the level of 18 psychiatric issues (inter alia: hostility, suspiciousness, hallucinations and grandiosity), each of these is rated from one (not present) to seven (extremely severe). These BPRS-measures were taken before treatment began (week 0) and then weekly for eight weeks. Below we begin with tables of the BPRS dataset in wide and long form:
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+head(BPRS, n=nrow(BPRS))
+head(BP_Long, n=30)
+```
+### The Analysis
+When possible, model-fitting provides a more rigorous tool for analysing data compared to the above discussed usmmary methods. Nevertheless, with longitudinal data, the key assumption of basic linear models - that observations be independent of other observations - often does not hold. We will begin by showcasing this graphically. Instead of examining the data through a plot that is similar to the "Plot of weight against time for rat data" in chapter 9 of MABS, here the representation of the progression of BPRS scores is done through two linear graphs, each representing one of the treatment groups. I find this much more informative than the slightly confusing numbers-chart referred to above.
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+
+ggplot(BP_Long, aes(x = week, y = bprs, group = subject)) +
+  geom_line(aes(col=subject)) +
+  scale_x_continuous(name = "Time (weeks)") +
+  facet_grid(. ~ treatment, labeller = label_both) +
+  scale_y_continuous(name = "BPRS") +
+  scale_color_viridis(discrete = TRUE, option = "D")
+
+pairs(BPRS[,4:12], gap=0.4, font.labels=4, cex.labels=1, panel=function(x, y){
+  points(x, y, col="#FDE725FF", pch=".", cex=4)
+  abline(lm(y ~ x), col="#440154FF")
+  },lower.panel = NULL)
+
+BP_reg <- lm(bprs ~ week + treatment, data=BP_Long)
+summary(BP_reg)
+
+```   
+    
+The above graphical representation would seem to provide evidence of the dependent nature of the observations on the previous scores of the subject. They are not completely random, but to an extent paint a trend.  This is especially clear in the graphset, which showcases how the results of each week are correlated with the results of the previous weeks.
+
+Additionally, both the graphical representation and the basic linear model seem to indicate that treatment 1 has better results for the bprs scores of the participants. Nevertheless, the graphs are not completely clear due to the large number of subjects, and the basic linear model applied above ignores the repeated-measures structure of the data. As such, it ignores the linkage of observations through by single subjects. More nuanced models can be applied. Below, one can find a gradual progression towards a more complex and fitting linear model. 
+
+The first summary data come from the Random Intercept Model, which allows us to abandon the independence assumption between all observations and link observations belonging to one subject. As such, it permits the linear regression fit for each subject to differ in intercept from other subjects.
+
+The next summary data is from the Random Intercept and Random Slope Model, which not only allows each subject to have their own intercept, but also their own slope. This in turn makes it possible incorporate the different progressions of each subject *and* the effect of time.
+
+Finally, the third summary data is from the Random Intercept and Random Slope Model with a focus on week by treatment interaction.   
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+BP_ri <- lmer(bprs ~ week + treatment + (1 | subject), data = BP_Long, REML = FALSE)
+summary(BP_ri)
+BP_rirs <- lmer(bprs ~ week + treatment + (week | subject), data = BP_Long, REML = FALSE)
+summary(BP_rirs)
+BP_rirsX <- lmer(bprs ~ week*treatment + (week | subject), data = BP_Long, REML = FALSE)
+summary(BP_rirsX)
+```   
+    
+As we are interested in the model that provides the best representation of the data, we will use the ANOVA-method and examine the resulting p-values of the chi-squared test. The smaller the value, the better the model is compared to the contrasted model. The results of the ANOVAs can be found below:    
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+anova(BP_ri,BP_rirs)
+anova(BP_rirs,BP_rirsX)
+anova(BP_ri,BP_rirsX)
+```   
+    
+The smallest p-value is between the basic random intercept model and the Random Intercept and Random Slope Model which allows from week by treatment interaction. In fact, each move towards a more complicated model produces an improvement in fit. This improvement is not statistically significant between the Random Intercept and Random Slope Model which allows from week by treatment interaction, and the general Random Intercept and Random Slope Model, but the latter is still the preferred one, as it provides the best fit overall, with the highest chi-squared score and lower p-value. As such, going forward, we will apply this model in our analysis.
+
+In the below grahical representation we can see the applicability of our fitted model to the observed bprs scores. the colors indicate the subject within the treatment group.    
+
+```{r,warning=FALSE,message=FALSE,echo=FALSE}
+BP_LongF <- mutate(BP_Long, Fitted=fitted(BP_rirsX)) 
+Fitts <- ggplot(BP_LongF, aes(x = week, y = Fitted, group = subject)) +
+        geom_line(aes(color=subject)) +
+        scale_x_continuous(name = "Time (week)", breaks = seq(0, 8, by=2)) +
+        scale_y_continuous(name = "bprs") +
+        facet_grid(. ~ treatment, labeller = label_both) +
+        theme(legend.position = "NA") +
+        scale_color_viridis(discrete = TRUE, option = "D")
+Obs <- ggplot(BP_LongF, aes(x = week, y = bprs, group = subject)) +
+        geom_line(aes(color=subject)) +
+        scale_x_continuous(name = "Time (week)", breaks = seq(0, 8, by=2)) +
+        scale_y_continuous(name = "bprs") +
+        facet_grid(. ~ treatment, labeller = label_both) +
+        theme(legend.position = "NA") +
+        scale_color_viridis(discrete = TRUE, option = "D")
+ggarrange(Obs, Fitts, labels=c("Observed", "Fitted"), ncol=2, nrow=1)
+
+summary(BP_rirsX)
+```    
+As can be seen from the above graphical representation, the fitted model provides a decent fit, but not a perfect one. What becomes clear from it though, is the fact that both treatments seem to produce an effect on the bprs-scores. The general trend is a downward one, with Treatment 1 producing slightly lower scores. As the above repretition of the summary shows us, the t-value for the effect of time on the intercept is high enough to indicate statistical significance. The correlation of the fixed effects indicates a medium strong negative correlation.
+
+In case of the treatment type, the correlation of fixed effects gives us a intermediate negative correlation moving from treatment 1 to treatment 2. Nevertheless, the t value for this does not provide sufficient evidence of statistical significance. As such here the null hypothesis - that treatment type has no effect - is not disproved. 
